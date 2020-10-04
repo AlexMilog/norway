@@ -4,14 +4,45 @@ from matplotlib.widgets import Slider, Button
 import numpy as np
 import math
 
+wpred = [1, 0.01, 0.01, 0.01]
 
-def vectorfield0(w, t, p):
+spred = 0
+
+arrayofs = [spred]
+
+
+def vectorfield(w, t, p):
+    global wpred
+    global spred
+    global arrayofs
     x1, x3, x2, x4 = w
     limit, smallk, bigk, delta = p
-    stop = min(limit, max(-limit, x1-x2))
+    if t == 0:
+        stop = spred
+    else:
+        stop = funkcia(w, wpred, spred)
+
+
+    # stop = min(limit, max(-limit, x1-x2))
     f = smallk*(x1-x2) + stop
     func = [x3, -f-x2*bigk, x4, f-x4*delta]
+
+    wpred = w
+    spred = stop
+    arrayofs.append(stop)
     return func
+
+def funkcia(w,wold, sold):
+    snew = min(limit, max(-limit, (((w[0]-w[2])-(wold[0]-wold[2]))+sold)))
+    return snew
+
+
+def sosolver(func, x0, t,  p, dt):
+    ans = [x0]
+    for i in t[1:]:
+        ans.append(ans[-1]+dt*func(x0, i, p ))
+    return ans
+
 
 
 bigk0 = 1
@@ -29,7 +60,7 @@ numpoints0 = 5000
 t = [stoptime0 * float(i) / (numpoints0 - 1) for i in range(numpoints0)]
 p = [limit, smallk0, bigk0, delta0]
 w0 = [x1, x3, x2, x4]
-wsol = odeint(vectorfield0, w0, t, args=(p,), atol=1.0e-8, rtol=1.0e-6)
+wsol = odeint(vectorfield, w0, t, args=(p,))
 
 x1_sol = []
 x2_sol = []
@@ -90,22 +121,24 @@ ssval = Slider(sval, 'Initial stop value s0', -1, 1, valinit=ss0, valstep=0.1)
 
 
 def update(val):
-    def vectorfield(w, t, p):
-        x1, x3, x2, x4 = w
-        limit, smallk, bigk, delta = p
-        stop = min(limit, max(-limit, x1-x2))
-        f = smallk*(x1-x2)+stop
-        func = [x3, -f - x2 * bigk, x4, f - x4 * delta]
-        return func
+    global arrayofs
+    global wpred
+    global spred
+    wpred = [1, 0.01, 0.01, 0.01]
+
+    spred = ssval.val
+
+    arrayofs = [spred]
 
     smallk = ssmallkval.val
     bigk = sbigkval.val
-    s = ssval.val
+
     delta = delta0
-    limit = 1
 
     # Initial conditions
     x1, x3, x2, x4 = 1, 0.01, 0.01, 0.01
+
+
 
     stoptime = stoptime0
     numpoints = numpoints0
@@ -113,7 +146,7 @@ def update(val):
     t = [stoptime * float(i) / (numpoints - 1) for i in range(numpoints)]
     p = [limit, smallk, bigk, delta]
     w0 = [x1, x3, x2, x4]
-    wsol = odeint(vectorfield, w0, t, args=(p,), atol=1.0e-8, rtol=1.0e-6)
+    wsol = odeint(vectorfield, w0, t, args=(p,))
 
     x1_sol = []
     x2_sol = []
@@ -132,7 +165,8 @@ def update(val):
     s = ssval.val
     sols = [s]
     for i in range(0, len(wsol) - 1):
-        sols.append(min(limit, max(-limit, ((wsol[i + 1][0] - wsol[i + 1][2]) - (wsol[i][0] - wsol[i][2]) + sols[i]))))
+        sols.append(arrayofs[i])
+        #sols.append(min(limit, max(-limit, ((wsol[i + 1][0] - wsol[i + 1][2]) - (wsol[i][0] - wsol[i][2]) + sols[i]))))
     eq = -np.array(sols)/smallk
 
     l.set_xdata(solx)
@@ -148,5 +182,6 @@ def update(val):
 ssmallkval.on_changed(update)
 sbigkval.on_changed(update)
 ssval.on_changed(update)
+
 
 plt.show()
